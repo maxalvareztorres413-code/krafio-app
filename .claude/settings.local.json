@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:localhost)",
+      "PowerShell(gh --version)",
+      "PowerShell(vercel --version 2>&1)",
+      "PowerShell(Get-Command git -ErrorAction SilentlyContinue | Select-Object Source; \\(Get-ChildItem \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\" -ErrorAction SilentlyContinue\\) | Select-Object FullName; \\(Get-ChildItem \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" -ErrorAction SilentlyContinue\\) | Select-Object FullName)"
+    ]
+  }
+}
