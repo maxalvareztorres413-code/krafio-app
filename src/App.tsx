@@ -1,7 +1,12 @@
+import { AuthProvider } from './contexts/AuthContext'
 import KrafioApp from './components/KrafioApp'
 
 function App() {
-  return <KrafioApp />
+  return (
+    <AuthProvider>
+      <KrafioApp />
+    </AuthProvider>
+  )
 }
 
 export default App

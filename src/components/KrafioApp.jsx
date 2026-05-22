@@ -1,11 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, Star, MapPin, Phone, MessageCircle, Shield, Award, Clock,
   Heart, Filter, ChevronRight, ArrowLeft, Briefcase, User, Home,
   Plus, Check, X, Hammer, Paintbrush, Wrench, Zap, Truck, Sparkles,
   Trees, Bug, Wind, Droplet, Settings, TrendingUp, Calendar, DollarSign,
-  Camera, Edit3, Send, Bell, Globe
+  Camera, Edit3, Send, Bell, Globe, LogOut
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import AuthModal from './auth/AuthModal';
+import ProviderSetupForm from './provider/ProviderSetupForm';
 
 // ============ TRADUCCIONES ============
 const translations = {
@@ -335,6 +339,14 @@ export default function KrafioApp() {
   const [country, setCountry] = useState('MX');
   const [showLangPicker, setShowLangPicker] = useState(false);
 
+  // Auth
+  const { user, profile, signOut, loading: authLoading, fetchProfile } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalRole, setAuthModalRole] = useState(null);
+  const [providerData, setProviderData] = useState(null);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+
   // Detección automática del país (simulada - en producción se haría con geolocation API o IP)
   useEffect(() => {
     // En producción real: fetch a un servicio de geolocalización por IP
@@ -345,6 +357,50 @@ export default function KrafioApp() {
     else if (browserLang.startsWith('fr')) setCountry('FR');
     else setCountry('MX');
   }, []);
+
+  // Cargar datos del proveedor logueado
+  const loadProviderData = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('providers').select('*').eq('id', user.id).single();
+    if (data) {
+      setProviderData(data);
+      setMode('provider');
+      setProviderView('dashboard');
+      setNeedsProfileSetup(false);
+    } else {
+      setNeedsProfileSetup(true);
+    }
+  }, [user]);
+
+  // Routing basado en auth
+  useEffect(() => {
+    if (authLoading) return;
+    if (user && profile) {
+      // Rol pendiente por Google OAuth
+      const pendingRole = localStorage.getItem('krafio_pending_role');
+      if (pendingRole && !profile.role) {
+        localStorage.removeItem('krafio_pending_role');
+        supabase.from('profiles').update({ role: pendingRole }).eq('id', user.id)
+          .then(() => fetchProfile(user.id));
+        return;
+      }
+      if (profile.role === 'client') {
+        setMode('client');
+        setClientView('home');
+      } else if (profile.role === 'provider') {
+        loadProviderData();
+      }
+    } else if (!user) {
+      setMode('landing');
+      setNeedsProfileSetup(false);
+      setProviderData(null);
+    }
+  }, [user, profile, authLoading, loadProviderData, fetchProfile]);
+
+  const openAuth = (role) => {
+    setAuthModalRole(role);
+    setShowAuthModal(true);
+  };
 
   const lang = countryToLanguage[country] || 'en';
   const t = translations[lang];
@@ -523,9 +579,52 @@ export default function KrafioApp() {
     </div>
   );
 
+  // ============ PANTALLAS GLOBALES ============
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4EFE6' }}>
+        <div className="text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: '#2C2416', animation: 'pulse 2s infinite' }}>
+            <Home size={26} color="#F4EFE6" />
+          </div>
+          <p style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontSize: '14px' }}>Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && profile && !profile.role) {
+    return (
+      <div className="min-h-screen flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+        <div className="w-full max-w-md rounded-t-3xl p-6 pb-8" style={{ background: '#F4EFE6' }}>
+          <div className="w-12 h-1 rounded-full mx-auto mb-6" style={{ background: '#D4C9B5' }} />
+          <h2 className="text-2xl mb-5" style={{ color: '#2C2416', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>¿Cómo usarás Krafio?</h2>
+          <div className="space-y-3">
+            {[{ role: 'client', icon: Home, label: 'Soy cliente', sub: 'Necesito un servicio' }, { role: 'provider', icon: Briefcase, label: 'Soy proveedor', sub: 'Quiero ofrecer servicios' }].map(item => {
+              const Icon = item.icon;
+              return (
+                <button key={item.role} onClick={async () => { await supabase.from('profiles').update({ role: item.role }).eq('id', user.id); await fetchProfile(user.id); }}
+                  className="w-full p-5 rounded-2xl flex items-center gap-4 text-left border-2"
+                  style={{ borderColor: '#2C2416', color: '#2C2416', background: 'transparent' }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#EBE4D4' }}><Icon size={22} color="#2C2416" /></div>
+                  <div><div className="text-xs uppercase tracking-wider opacity-60 mb-0.5" style={{ fontFamily: 'system-ui' }}>{item.label}</div><div className="text-base" style={{ fontFamily: 'system-ui', fontWeight: 500 }}>{item.sub}</div></div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsProfileSetup) {
+    return <ProviderSetupForm onComplete={loadProviderData} />;
+  }
+
   // ============ LANDING ============
   if (mode === 'landing') {
     return (
+      <>
       <div className="min-h-screen" style={{ background: '#F4EFE6', fontFamily: 'Georgia, serif' }}>
         <LangPicker />
         <div className="max-w-md mx-auto min-h-screen relative overflow-hidden" style={{ background: '#F4EFE6' }}>
@@ -563,7 +662,7 @@ export default function KrafioApp() {
 
             <div className="space-y-3 mb-8">
               <button
-                onClick={() => { setMode('client'); setClientView('home'); }}
+                onClick={() => openAuth('client')}
                 className="w-full py-5 px-6 rounded-2xl flex items-center justify-between transition-transform active:scale-98 shadow-lg"
                 style={{ background: '#2C2416', color: '#F4EFE6' }}
               >
@@ -575,7 +674,7 @@ export default function KrafioApp() {
               </button>
 
               <button
-                onClick={() => { setMode('provider'); setProviderView('dashboard'); }}
+                onClick={() => openAuth('provider')}
                 className="w-full py-5 px-6 rounded-2xl flex items-center justify-between transition-transform active:scale-98 border-2"
                 style={{ borderColor: '#2C2416', background: 'transparent', color: '#2C2416' }}
               >
@@ -604,6 +703,14 @@ export default function KrafioApp() {
           </div>
         </div>
       </div>
+      {showAuthModal && (
+        <AuthModal
+          defaultRole={authModalRole}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      )}
+      </>
     );
   }
 
@@ -876,8 +983,8 @@ export default function KrafioApp() {
         <div className="max-w-md mx-auto" style={{ background: '#F4EFE6' }}>
           <div className="px-5 pt-12 pb-5">
             <div className="flex items-center justify-between mb-5">
-              <button onClick={() => setMode('landing')} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#EBE4D4' }}>
-                <ArrowLeft size={20} color="#2C2416" />
+              <button onClick={signOut} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#EBE4D4' }}>
+                <LogOut size={20} color="#2C2416" />
               </button>
               <div className="flex items-center gap-1 text-xs" style={{ color: '#7A6F5C', fontFamily: 'system-ui' }}>
                 <MapPin size={12} />
@@ -1033,13 +1140,25 @@ export default function KrafioApp() {
     }
 
     if (providerView === 'edit') {
-      const fields = [
-        { label: t.fullName, value: 'Martín Restrepo' },
-        { label: t.company, value: lang === 'en' ? 'Restrepo & Sons Painting' : 'Pinturas Restrepo & Hijos' },
-        { label: t.category, value: t.categoriesData.pintura },
-        { label: t.phone, value: '+57 300 123 4567' },
-        { label: t.yearsExp, value: '18' },
-        { label: t.refPrice, value: country === 'US' ? '$45/m²' : '$45.000/m²' }
+      const initials = (editFormData.full_name || profile?.full_name || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+      const handleSave = async () => {
+        await supabase.from('providers').update({
+          company: editFormData.company,
+          phone: editFormData.phone,
+          years_experience: parseInt(editFormData.years_experience) || 0,
+          reference_price: editFormData.reference_price,
+          bio: editFormData.bio,
+        }).eq('id', user.id);
+        await supabase.from('profiles').update({ full_name: editFormData.full_name }).eq('id', user.id);
+        setProviderData(prev => ({ ...prev, ...editFormData }));
+        setProviderView('dashboard');
+      };
+      const editFields = [
+        { key: 'full_name', label: t.fullName },
+        { key: 'company', label: t.company },
+        { key: 'phone', label: t.phone },
+        { key: 'years_experience', label: t.yearsExp, type: 'number' },
+        { key: 'reference_price', label: t.refPrice },
       ];
       return (
         <div className="min-h-screen" style={{ background: '#F4EFE6', fontFamily: 'Georgia, serif' }}>
@@ -1050,22 +1169,24 @@ export default function KrafioApp() {
                 <X size={20} color="#2C2416" />
               </button>
               <h2 className="text-lg" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>{t.editProfile}</h2>
-              <button onClick={() => setProviderView('dashboard')} className="px-4 py-2 rounded-full text-sm" style={{ background: '#2C2416', color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600 }}>{t.save}</button>
+              <button onClick={handleSave} className="px-4 py-2 rounded-full text-sm" style={{ background: '#2C2416', color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600 }}>{t.save}</button>
             </div>
             <div className="px-5 space-y-4">
               <div className="flex justify-center py-4">
                 <div className="w-24 h-24 rounded-full flex items-center justify-center relative" style={{ background: '#D97757' }}>
-                  <span className="text-3xl text-white" style={{ fontFamily: 'system-ui', fontWeight: 600 }}>MR</span>
+                  <span className="text-3xl text-white" style={{ fontFamily: 'system-ui', fontWeight: 600 }}>{initials}</span>
                   <button className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full flex items-center justify-center shadow-lg" style={{ background: '#2C2416' }}>
                     <Camera size={16} color="#F4EFE6" />
                   </button>
                 </div>
               </div>
-              {fields.map((field, i) => (
-                <div key={i}>
+              {editFields.map((field) => (
+                <div key={field.key}>
                   <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>{field.label}</label>
                   <input
-                    defaultValue={field.value}
+                    type={field.type || 'text'}
+                    value={editFormData[field.key] || ''}
+                    onChange={e => setEditFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
                     className="w-full px-4 py-3 rounded-xl outline-none border"
                     style={{ background: 'white', borderColor: '#D4C9B5', color: '#2C2416', fontFamily: 'system-ui' }}
                   />
@@ -1075,7 +1196,8 @@ export default function KrafioApp() {
                 <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>{t.aboutCraft}</label>
                 <textarea
                   rows={4}
-                  defaultValue={providers[0].bio}
+                  value={editFormData.bio || ''}
+                  onChange={e => setEditFormData(prev => ({ ...prev, bio: e.target.value }))}
                   className="w-full px-4 py-3 rounded-xl outline-none border resize-none"
                   style={{ background: 'white', borderColor: '#D4C9B5', color: '#2C2416', fontFamily: 'system-ui' }}
                 />
@@ -1092,27 +1214,32 @@ export default function KrafioApp() {
         <div className="max-w-md mx-auto pb-8" style={{ background: '#F4EFE6' }}>
           <div className="relative px-5 pt-12 pb-6" style={{ background: '#2C2416' }}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setMode('landing')} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(244,239,230,0.15)' }}>
-                <ArrowLeft size={20} color="#F4EFE6" />
+              <button onClick={signOut} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(244,239,230,0.15)' }}>
+                <LogOut size={20} color="#F4EFE6" />
               </button>
               <button onClick={() => setShowLangPicker(true)} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(244,239,230,0.15)' }}>
                 <Globe size={16} color="#F4EFE6" />
               </button>
             </div>
-            {/* Slogan en dashboard proveedor */}
             <p className="text-xs uppercase tracking-widest mb-4 opacity-50" style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600, letterSpacing: '0.15em' }}>
               {t.slogan}
             </p>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: '#D97757' }}>
-                <span className="text-2xl text-white" style={{ fontFamily: 'system-ui', fontWeight: 600 }}>MR</span>
+                <span className="text-2xl text-white" style={{ fontFamily: 'system-ui', fontWeight: 600 }}>
+                  {(profile?.full_name || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                </span>
               </div>
               <div className="flex-1">
                 <div className="text-xs uppercase tracking-widest opacity-60" style={{ color: '#F4EFE6', fontFamily: 'system-ui' }}>{t.welcome}</div>
-                <h2 className="text-xl" style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600 }}>Martín Restrepo</h2>
+                <h2 className="text-xl" style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600 }}>
+                  {profile?.full_name || providerData?.company || 'Proveedor'}
+                </h2>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Star size={12} fill="#E0A458" color="#E0A458" />
-                  <span className="text-xs" style={{ color: '#F4EFE6', fontFamily: 'system-ui' }}>4.9 · 187 {t.reviews}</span>
+                  <span className="text-xs" style={{ color: '#F4EFE6', fontFamily: 'system-ui' }}>
+                    {providerData?.rating || '—'} · {providerData?.reviews_count || 0} {t.reviews}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1202,7 +1329,7 @@ export default function KrafioApp() {
                 </div>
                 <ChevronRight size={20} color="#7A6F5C" />
               </button>
-              <button onClick={() => setProviderView('edit')} className="w-full p-4 rounded-2xl flex items-center justify-between" style={{ background: 'white' }}>
+              <button onClick={() => { setEditFormData({ full_name: profile?.full_name || '', company: providerData?.company || '', phone: providerData?.phone || '', years_experience: String(providerData?.years_experience || ''), reference_price: providerData?.reference_price || '', bio: providerData?.bio || '' }); setProviderView('edit'); }} className="w-full p-4 rounded-2xl flex items-center justify-between" style={{ background: 'white' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#E8F0E0' }}>
                     <Edit3 size={18} color="#3F5A2A" />
