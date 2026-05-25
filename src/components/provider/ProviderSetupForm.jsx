@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, Paintbrush, Droplet, Zap, Truck, Sparkles, Trees, Bug, Wind, Hammer, Settings, Wrench, Briefcase } from 'lucide-react'
+import { ChevronRight, Paintbrush, Droplet, Zap, Truck, Sparkles, Trees, Bug, Wind, Hammer, Settings, Wrench, Briefcase, X, MapPin, Loader } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -30,9 +30,43 @@ export default function ProviderSetupForm({ onComplete }) {
     years_experience: '',
     reference_price: '',
     bio: '',
+    tags: [],
+    address: '',
+    latitude: null,
+    longitude: null,
   })
+  const [tagInput, setTagInput] = useState('')
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeError, setGeocodeError] = useState('')
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
+
+  const addTag = () => {
+    const t = tagInput.trim()
+    if (!t || form.tags.length >= 6 || form.tags.includes(t)) { setTagInput(''); return }
+    set('tags', [...form.tags, t])
+    setTagInput('')
+  }
+
+  const removeTag = (t) => set('tags', form.tags.filter(x => x !== t))
+
+  const geocodeAddress = async () => {
+    if (!form.address.trim()) return
+    setGeocoding(true)
+    setGeocodeError('')
+    try {
+      const q = encodeURIComponent(form.address.trim())
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+        headers: { 'User-Agent': 'KrafioApp/1.0' },
+      })
+      const data = await res.json()
+      if (data.length === 0) { setGeocodeError('No encontramos esa dirección. Intenta con más detalles.'); setGeocoding(false); return }
+      setForm(prev => ({ ...prev, latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) }))
+    } catch {
+      setGeocodeError('Error de conexión al geocodificar.')
+    }
+    setGeocoding(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -57,6 +91,10 @@ export default function ProviderSetupForm({ onComplete }) {
         years_experience: parseInt(form.years_experience) || 0,
         reference_price: form.reference_price,
         bio: form.bio,
+        tags: form.tags,
+        address: form.address || null,
+        latitude: form.latitude,
+        longitude: form.longitude,
       })
 
     if (providerErr) { setError(providerErr.message); setLoading(false); return }
@@ -141,6 +179,88 @@ export default function ProviderSetupForm({ onComplete }) {
                 )
               })}
             </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="text-xs uppercase tracking-wider block mb-1.5" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>
+              Especialidades (hasta 6)
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {form.tags.map(t => (
+                <span key={t} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(217,119,87,0.12)', color: '#A8553C',
+                  borderRadius: 20, padding: '3px 10px', fontSize: 12, fontFamily: 'system-ui', fontWeight: 600,
+                }}>
+                  {t}
+                  <button type="button" onClick={() => removeTag(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#A8553C' }}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            {form.tags.length < 6 && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Ej: Impermeabilización, Estuco..."
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                  className="w-full px-4 py-3 rounded-xl outline-none border"
+                  style={{ borderColor: '#D4C9B5', background: 'white', color: '#2C2416', fontFamily: 'system-ui', flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={addTag}
+                  style={{ padding: '0 16px', borderRadius: 12, background: '#2C2416', color: '#F4EFE6', fontFamily: 'system-ui', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="text-xs uppercase tracking-wider block mb-1.5" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>
+              Dirección / zona de trabajo (opcional)
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Ej: Bogotá, Chapinero"
+                value={form.address}
+                onChange={e => { set('address', e.target.value); set('latitude', null); set('longitude', null); setGeocodeError('') }}
+                className="w-full px-4 py-3 rounded-xl outline-none border"
+                style={{ borderColor: form.latitude ? '#6B8E4E' : '#D4C9B5', background: 'white', color: '#2C2416', fontFamily: 'system-ui', flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={geocodeAddress}
+                disabled={geocoding || !form.address.trim()}
+                style={{
+                  padding: '0 14px', borderRadius: 12, border: 'none', cursor: form.address.trim() ? 'pointer' : 'default',
+                  background: form.latitude ? '#6B8E4E' : '#2C2416', color: '#F4EFE6', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 4, opacity: (!form.address.trim() || geocoding) ? 0.6 : 1,
+                }}
+              >
+                {geocoding
+                  ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                  : <MapPin size={14} />
+                }
+                <span style={{ fontSize: 12, fontFamily: 'system-ui', fontWeight: 600 }}>
+                  {form.latitude ? 'OK' : 'Ubicar'}
+                </span>
+              </button>
+            </div>
+            {geocodeError && (
+              <p style={{ fontSize: 11, color: '#A8553C', fontFamily: 'system-ui', marginTop: 4 }}>{geocodeError}</p>
+            )}
+            {form.latitude && (
+              <p style={{ fontSize: 11, color: '#6B8E4E', fontFamily: 'system-ui', marginTop: 4 }}>Ubicación confirmada</p>
+            )}
           </div>
 
           <div>
