@@ -1707,33 +1707,11 @@ export default function KrafioApp() {
                 </div>
               </div>
             )}
-            {showPhone && p.phone && (
-              <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowPhone(false)}>
-                <div className="w-full max-w-md rounded-t-3xl p-6 pb-8" style={{ background: '#F4EFE6' }} onClick={e => e.stopPropagation()}>
-                  <div className="w-12 h-1 rounded-full mx-auto mb-5" style={{ background: '#D4C9B5' }} />
-                  <p className="text-xs uppercase tracking-widest mb-1" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>{p.company}</p>
-                  <p className="text-3xl mb-5" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>{p.phone}</p>
-                  <a href={`tel:${p.phone}`} className="block w-full py-4 rounded-2xl text-center shadow-lg" style={{ background: '#2C2416', color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 600, textDecoration: 'none' }}>
-                    <Phone size={18} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
-                    {lang === 'en' ? 'Call now' : lang === 'pt' ? 'Ligar agora' : lang === 'fr' ? 'Appeler' : 'Llamar ahora'}
-                  </a>
-                </div>
-              </div>
-            )}
             <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-5 py-4" style={{ background: 'linear-gradient(to top, #F4EFE6 70%, transparent)' }}>
               <div className="flex gap-2">
                 <button onClick={handleStartChat} className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#2C2416', background: 'transparent' }}>
                   <MessageCircle size={22} color="#2C2416" />
                 </button>
-                {p.phone && clientJobStatus ? (
-                  <button onClick={() => setShowPhone(true)} className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#2C2416', background: 'transparent' }}>
-                    <Phone size={22} color="#2C2416" />
-                  </button>
-                ) : p.phone ? (
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#D4C9B5', background: 'transparent', cursor: 'default' }} title={lang === 'en' ? 'Available after provider accepts' : 'Disponible cuando el proveedor acepte'}>
-                    <Phone size={22} color="#D4C9B5" />
-                  </div>
-                ) : null}
                 <button
                   onClick={() => { setBookingMsg(''); setBookingDate(''); setBookingSubmitted(false); setClientView('booking'); }}
                   className="flex-1 rounded-2xl flex items-center justify-center gap-2 shadow-lg"
