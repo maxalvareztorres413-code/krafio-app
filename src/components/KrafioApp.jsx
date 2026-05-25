@@ -384,6 +384,7 @@ export default function KrafioApp() {
   const [showPhone, setShowPhone] = useState(false);
   const [providerReviews, setProviderReviews] = useState([]);
   const [hasConversation, setHasConversation] = useState(false);
+  const [clientJobStatus, setClientJobStatus] = useState(null); // null | 'accepted' | 'in_progress' | 'completed'
   const [myReview, setMyReview] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
@@ -535,7 +536,15 @@ export default function KrafioApp() {
     if (user) {
       supabase.from('conversations').select('id')
         .eq('client_id', user.id).eq('provider_id', providerId).maybeSingle()
-        .then(({ data }) => setHasConversation(!!data));
+        .then(async ({ data }) => {
+          setHasConversation(!!data);
+          if (data?.id) {
+            const { data: job } = await supabase.from('jobs').select('status').eq('conversation_id', data.id).maybeSingle();
+            setClientJobStatus(job?.status || null);
+          } else {
+            setClientJobStatus(null);
+          }
+        });
       supabase.from('reviews').select('*')
         .eq('provider_id', providerId).eq('client_id', user.id).maybeSingle()
         .then(({ data }) => {
@@ -1632,8 +1641,8 @@ export default function KrafioApp() {
                   })}
                 </div>
 
-                {/* Review form — shown to clients who have chatted with this provider */}
-                {user && hasConversation && (
+                {/* Review form — only shown after job is completed */}
+                {user && clientJobStatus === 'completed' && (
                   <div className="mt-4">
                     {myReview && !showReviewForm ? (
                       <div className="p-4 rounded-xl flex items-center justify-between" style={{ background: '#EBE4D4' }}>
@@ -1716,11 +1725,15 @@ export default function KrafioApp() {
                 <button onClick={handleStartChat} className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#2C2416', background: 'transparent' }}>
                   <MessageCircle size={22} color="#2C2416" />
                 </button>
-                {p.phone && (
+                {p.phone && clientJobStatus ? (
                   <button onClick={() => setShowPhone(true)} className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#2C2416', background: 'transparent' }}>
                     <Phone size={22} color="#2C2416" />
                   </button>
-                )}
+                ) : p.phone ? (
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border-2" style={{ borderColor: '#D4C9B5', background: 'transparent', cursor: 'default' }} title={lang === 'en' ? 'Available after provider accepts' : 'Disponible cuando el proveedor acepte'}>
+                    <Phone size={22} color="#D4C9B5" />
+                  </div>
+                ) : null}
                 <button
                   onClick={() => { setBookingMsg(''); setBookingDate(''); setBookingSubmitted(false); setClientView('booking'); }}
                   className="flex-1 rounded-2xl flex items-center justify-center gap-2 shadow-lg"
@@ -2037,14 +2050,18 @@ export default function KrafioApp() {
                               {lang === 'en' ? 'Reviewed' : 'Reseñado'}
                             </span>
                           </div>
-                        ) : (!isActive && (
+                        ) : isCompleted ? (
                           <button
                             onClick={() => { setReviewModalProviderId(item.providerId); setReviewModalProviderName(item.company); setReviewModalRating(0); setReviewModalText(''); }}
                             style={{ fontSize: 12, color: '#D97757', fontFamily: 'system-ui', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Star size={13} color="#D97757" />
                             {lang === 'en' ? 'Leave a review' : lang === 'pt' ? 'Deixar avaliação' : lang === 'fr' ? 'Laisser un avis' : 'Dejar reseña'}
                           </button>
-                        ))}
+                        ) : !job ? (
+                          <span style={{ fontSize: 11, color: '#B0A898', fontFamily: 'system-ui' }}>
+                            {lang === 'en' ? 'Awaiting response' : 'Esperando respuesta'}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   );
