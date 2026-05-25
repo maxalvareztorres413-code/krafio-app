@@ -487,6 +487,7 @@ export default function KrafioApp() {
         setClientView('home');
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         if (profile.address && !userAddress) setUserAddress(profile.address);
+        subscribeToPush(user.id);
       } else if (profile.role === 'provider') {
         loadProviderData();
       }
@@ -552,14 +553,17 @@ export default function KrafioApp() {
       .eq('client_id', user.id).order('last_message_at', { ascending: false });
     if (!convs?.length) { setClientHistory([]); return; }
     const provIds = [...new Set(convs.map(c => c.provider_id))];
-    const [{ data: profs }, { data: provs }, { data: myRevs }] = await Promise.all([
+    const convIds = convs.map(c => c.id);
+    const [{ data: profs }, { data: provs }, { data: myRevs }, { data: jobs }] = await Promise.all([
       supabase.from('profiles').select('id, full_name').in('id', provIds),
       supabase.from('providers').select('id, company, category').in('id', provIds),
       supabase.from('reviews').select('provider_id, rating').eq('client_id', user.id),
+      supabase.from('jobs').select('id, conversation_id, status').in('conversation_id', convIds),
     ]);
     const pm = {}; profs?.forEach(p => { pm[p.id] = p; });
     const dm = {}; provs?.forEach(p => { dm[p.id] = p; });
     const rm = {}; myRevs?.forEach(r => { rm[r.provider_id] = r; });
+    const jm = {}; jobs?.forEach(j => { jm[j.conversation_id] = j; });
     setClientReviewMap(rm);
     setClientHistory(convs.map(c => ({
       id: c.id,
@@ -568,6 +572,7 @@ export default function KrafioApp() {
       category: dm[c.provider_id]?.category || 'todos',
       preview: c.last_message_preview,
       date: c.last_message_at,
+      job: jm[c.id] || null,
     })));
   };
 
@@ -1969,6 +1974,32 @@ export default function KrafioApp() {
                   const Icon = cat?.icon || Briefcase;
                   const cColor = cat?.color || '#D97757';
                   const alreadyReviewed = clientReviewMap[item.providerId];
+                  const job = item.job;
+                  const isActive = job && (job.status === 'accepted' || job.status === 'in_progress');
+                  const isCompleted = job?.status === 'completed';
+
+                  const jobStatusChip = job ? (
+                    <span style={{
+                      fontSize: 10, fontFamily: 'system-ui', fontWeight: 700, borderRadius: 20,
+                      padding: '2px 8px', marginLeft: 6,
+                      background: isCompleted ? '#D1E7DD' : '#E0EDF8',
+                      color: isCompleted ? '#0A5729' : '#2A4A7A',
+                    }}>
+                      {isCompleted
+                        ? (lang === 'en' ? 'Completed' : 'Completado')
+                        : (lang === 'en' ? 'In progress' : 'En curso')}
+                    </span>
+                  ) : null;
+
+                  const markComplete = async () => {
+                    await supabase.from('jobs').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', job.id);
+                    setClientHistory(prev => prev.map(h => h.id === item.id ? { ...h, job: { ...h.job, status: 'completed' } } : h));
+                    setReviewModalProviderId(item.providerId);
+                    setReviewModalProviderName(item.company);
+                    setReviewModalRating(0);
+                    setReviewModalText('');
+                  };
+
                   return (
                     <div key={item.id} className="rounded-2xl overflow-hidden" style={{ background: 'white' }}>
                       <button
@@ -1979,30 +2010,41 @@ export default function KrafioApp() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline mb-0.5">
-                            <span className="text-sm" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>{item.company}</span>
+                            <div className="flex items-center min-w-0">
+                              <span className="text-sm" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>{item.company}</span>
+                              {jobStatusChip}
+                            </div>
                             <span className="text-xs ml-2 flex-shrink-0" style={{ color: '#B0A898', fontFamily: 'system-ui' }}>{relTime(item.date)}</span>
                           </div>
                           <p className="text-xs truncate" style={{ color: '#7A6F5C', fontFamily: 'system-ui' }}>{item.preview || '—'}</p>
                         </div>
                       </button>
-                      <div style={{ borderTop: '1px solid #F0EBE1', padding: '8px 16px' }}>
+                      <div style={{ borderTop: '1px solid #F0EBE1', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        {isActive && (
+                          <button
+                            onClick={markComplete}
+                            style={{ fontSize: 12, color: '#3F5A2A', fontFamily: 'system-ui', fontWeight: 600, background: '#E8F0E0', border: 'none', cursor: 'pointer', padding: '5px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Check size={13} color="#3F5A2A" />
+                            {lang === 'en' ? 'Mark complete' : 'Marcar completado'}
+                          </button>
+                        )}
                         {alreadyReviewed ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: isActive ? 'auto' : 0 }}>
                             <div style={{ display: 'flex', gap: 2 }}>
                               {[1,2,3,4,5].map(i => <Star key={i} size={12} fill={i <= alreadyReviewed.rating ? '#E0A458' : 'none'} color="#E0A458" />)}
                             </div>
                             <span style={{ fontSize: 11, color: '#7A6F5C', fontFamily: 'system-ui' }}>
-                              {lang === 'en' ? 'You reviewed this provider' : 'Ya dejaste una reseña'}
+                              {lang === 'en' ? 'Reviewed' : 'Reseñado'}
                             </span>
                           </div>
-                        ) : (
+                        ) : (!isActive && (
                           <button
                             onClick={() => { setReviewModalProviderId(item.providerId); setReviewModalProviderName(item.company); setReviewModalRating(0); setReviewModalText(''); }}
                             style={{ fontSize: 12, color: '#D97757', fontFamily: 'system-ui', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Star size={13} color="#D97757" />
                             {lang === 'en' ? 'Leave a review' : lang === 'pt' ? 'Deixar avaliação' : lang === 'fr' ? 'Laisser un avis' : 'Dejar reseña'}
                           </button>
-                        )}
+                        ))}
                       </div>
                     </div>
                   );
@@ -2266,6 +2308,20 @@ export default function KrafioApp() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Notifications */}
+            {pushPermission !== 'granted' && (
+              <div className="px-5 mb-3">
+                <button onClick={() => subscribeToPush(user.id)} className="w-full p-4 rounded-2xl flex items-center gap-3" style={{ background: '#2C2416' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(244,239,230,0.15)' }}>
+                    <Bell size={18} color="#F4EFE6" />
+                  </div>
+                  <span className="text-sm" style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontWeight: 500 }}>
+                    {lang === 'en' ? 'Enable notifications' : 'Activar notificaciones'}
+                  </span>
+                </button>
               </div>
             )}
 
