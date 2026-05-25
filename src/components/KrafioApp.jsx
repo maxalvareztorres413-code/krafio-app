@@ -1046,11 +1046,18 @@ export default function KrafioApp() {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
     if (searchQuery) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => {
+        const catName = (t.categoriesData[p.category] || '').toLowerCase();
+        return (
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.company || '').toLowerCase().includes(q) ||
+          (p.category || '').toLowerCase().includes(q) ||
+          catName.includes(q) ||
+          (p.bio || '').toLowerCase().includes(q) ||
+          (p.tags || []).some(tag => tag.toLowerCase().includes(q))
+        );
+      });
     }
     // Calcular distancia real si hay ubicación del usuario
     filtered = filtered.map(p => {
@@ -1503,7 +1510,7 @@ export default function KrafioApp() {
             <div className="relative h-64" style={{ background: `linear-gradient(135deg, ${catColor} 0%, ${catColor}dd 100%)` }}>
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
               <div className="relative px-5 pt-12 pb-4 flex justify-between">
-                <button onClick={() => setClientView('category')} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}>
+                <button onClick={() => { setClientView(selectedCategory ? 'category' : 'home'); }} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}>
                   <ArrowLeft size={20} color="white" />
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -1594,7 +1601,7 @@ export default function KrafioApp() {
               <div className="mb-5">
                 <h3 className="text-xs uppercase tracking-widest mb-3" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>{t.specialties}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {p.tags.map((tag, i) => (
+                  {(p.tags || []).map((tag, i) => (
                     <span key={i} className="px-3 py-1.5 rounded-full text-sm" style={{ background: '#EBE4D4', color: '#2C2416', fontFamily: 'system-ui' }}>
                       {tag}
                     </span>
@@ -2385,16 +2392,18 @@ export default function KrafioApp() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(244,239,230,0.1)', borderRadius: 12, padding: '10px 14px', marginBottom: 20 }}>
                   <div style={{ display: 'flex' }}>
                     {filteredProviders.slice(0, 4).map((p, i) => (
-                      <div key={p.id} style={{ width: 26, height: 26, borderRadius: '50%', background: `${categories.find(c => c.id === p.category)?.color || '#D97757'}44`, border: '2px solid #2C2416', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#F4EFE6', fontWeight: 700, fontFamily: 'system-ui' }}>
+                      <button key={p.id} type="button" onClick={() => { setSelectedProvider(p); setClientView('detail'); }} style={{ width: 26, height: 26, borderRadius: '50%', background: `${categories.find(c => c.id === p.category)?.color || '#D97757'}66`, border: '2px solid #2C2416', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#F4EFE6', fontWeight: 700, fontFamily: 'system-ui', cursor: 'pointer', padding: 0 }}>
                         {(p.company || p.name || '?')[0].toUpperCase()}
-                      </div>
+                      </button>
                     ))}
                   </div>
-                  <p style={{ color: 'rgba(244,239,230,0.85)', fontFamily: 'system-ui', fontSize: 12, margin: 0 }}>
-                    <strong style={{ color: '#F4EFE6' }}>{total}</strong>
-                    {' '}{lang === 'en' ? 'pros available' : lang === 'pt' ? 'profissionais disponíveis' : lang === 'fr' ? 'pros disponibles' : 'profesionales disponibles'}
-                    {verified > 0 && <span style={{ color: '#D97757' }}> · {verified} {lang === 'en' ? 'verified' : 'verificados'}</span>}
-                  </p>
+                  <button type="button" onClick={() => { if (filteredProviders.length === 1) { setSelectedProvider(filteredProviders[0]); setClientView('detail'); } }} style={{ flex: 1, background: 'none', border: 'none', padding: 0, cursor: filteredProviders.length === 1 ? 'pointer' : 'default', textAlign: 'left' }}>
+                    <p style={{ color: 'rgba(244,239,230,0.85)', fontFamily: 'system-ui', fontSize: 12, margin: 0 }}>
+                      <strong style={{ color: '#F4EFE6' }}>{total}</strong>
+                      {' '}{lang === 'en' ? 'pros available' : lang === 'pt' ? 'profissionais disponíveis' : lang === 'fr' ? 'pros disponibles' : 'profesionales disponibles'}
+                      {verified > 0 && <span style={{ color: '#D97757' }}> · {verified} {lang === 'en' ? 'verified' : 'verificados'}</span>}
+                    </p>
+                  </button>
                 </div>
               ) : null;
             })()}
@@ -2416,6 +2425,62 @@ export default function KrafioApp() {
             <LocationBanner />
           </div>
 
+          {searchQuery ? (
+            /* ── Resultados de búsqueda ── */
+            <div className="px-5 pb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs uppercase tracking-widest" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>
+                  {filteredProviders.length} {lang === 'en' ? 'results' : 'resultados'} · «{searchQuery}»
+                </h2>
+                <button onClick={() => setSearchQuery('')} style={{ fontSize: 12, color: '#D97757', fontFamily: 'system-ui', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
+                  {lang === 'en' ? 'Clear' : 'Borrar'}
+                </button>
+              </div>
+              {filteredProviders.length === 0 ? (
+                <div className="p-10 rounded-2xl text-center" style={{ background: 'white' }}>
+                  <Search size={28} color="#B0A898" style={{ margin: '0 auto 10px' }} />
+                  <p style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontSize: 14 }}>
+                    {lang === 'en' ? 'No providers found.' : 'No encontramos proveedores para esa búsqueda.'}
+                  </p>
+                  <p style={{ color: '#B0A898', fontFamily: 'system-ui', fontSize: 12, marginTop: 6 }}>
+                    {lang === 'en' ? 'Try another keyword.' : 'Prueba con otra palabra clave.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredProviders.map(p => {
+                    const c = categories.find(cat => cat.id === p.category);
+                    const Icon = c?.icon || Briefcase;
+                    const cColor = c?.color || '#D97757';
+                    return (
+                      <button key={p.id} type="button" onClick={() => { setSelectedProvider(p); setClientView('detail'); setSearchQuery(''); }}
+                        className="w-full p-4 rounded-2xl text-left" style={{ background: 'white', cursor: 'pointer' }}>
+                        <div className="flex gap-3">
+                          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${cColor}22` }}>
+                            <Icon size={26} color={cColor} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#2C2416', color: '#F4EFE6', fontFamily: 'system-ui' }}>{p.badge}</span>
+                            </div>
+                            <h3 className="text-base leading-tight" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>{p.company}</h3>
+                            <div className="flex items-center gap-2 mt-1 text-xs" style={{ fontFamily: 'system-ui' }}>
+                              <Star size={12} fill="#E0A458" color="#E0A458" />
+                              <span style={{ color: '#2C2416', fontWeight: 600 }}>{p.rating}</span>
+                              <span style={{ color: '#D4C9B5' }}>•</span>
+                              <span style={{ color: '#7A6F5C' }}>{t.categoriesData[p.category] || p.category}</span>
+                              {p.price && p.price !== '—' && <><span style={{ color: '#D4C9B5' }}>•</span><span style={{ color: '#2C2416' }}>{p.price}</span></>}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+          <>
           <div className="px-5 pb-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs uppercase tracking-widest" style={{ color: '#7A6F5C', fontFamily: 'system-ui', fontWeight: 600 }}>{t.categories}</h2>
@@ -2504,6 +2569,8 @@ export default function KrafioApp() {
               })}
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
       <AddressModal />
