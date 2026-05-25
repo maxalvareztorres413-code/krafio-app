@@ -484,8 +484,10 @@ export default function KrafioApp() {
         return;
       }
       if (profile.role === 'client') {
-        setMode('client');
-        setClientView('home');
+        if (mode !== 'client') {
+          setMode('client');
+          setClientView('home');
+        }
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         if (profile.address && !userAddress) setUserAddress(profile.address);
         subscribeToPush(user.id);
