@@ -2344,55 +2344,76 @@ export default function KrafioApp() {
       <div className="min-h-screen" style={{ background: '#F4EFE6', fontFamily: 'Georgia, serif' }}>
         <LangPicker />
         <div className="max-w-md mx-auto" style={{ background: '#F4EFE6' }}>
-          <div className="px-5 pt-12 pb-5">
-            <div className="flex items-center justify-between mb-5">
-              <button onClick={() => { loadClientHistory(); setClientView('profile'); }} className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: avatarUrl ? 'transparent' : '#D97757' }}>
+          {/* Hero */}
+          <div style={{ background: '#2C2416', padding: '48px 20px 28px' }}>
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={() => { loadClientHistory(); setClientView('profile'); }} style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: avatarUrl ? 'transparent' : '#D97757', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {avatarUrl
-                  ? <img src={avatarUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-                  : <span style={{ color: 'white', fontFamily: 'system-ui', fontWeight: 700, fontSize: 14 }}>{(profile?.full_name || user?.email || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+                  ? <img src={avatarUrl} alt="" style={{ width: 38, height: 38, objectFit: 'cover' }} />
+                  : <span style={{ color: 'white', fontFamily: 'system-ui', fontWeight: 700, fontSize: 13 }}>{(profile?.full_name || user?.email || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>
                 }
               </button>
               <button
                 onClick={() => { setAddressInputText(userAddress); setGeocodeError(''); setShowAddressInput(true); }}
-                className="flex items-center gap-1 text-xs max-w-[160px]"
-                style={{ color: userAddress ? '#D97757' : '#7A6F5C', fontFamily: 'system-ui' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(244,239,230,0.12)', border: 'none', borderRadius: 20, padding: '6px 12px', cursor: 'pointer', maxWidth: 160 }}
               >
-                <MapPin size={12} color={userAddress ? '#D97757' : '#7A6F5C'} />
-                <span className="truncate">{userAddress || t.yourZone}</span>
+                <MapPin size={12} color="#D97757" />
+                <span style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {userAddress || t.yourZone}
+                </span>
               </button>
-              <button onClick={() => setShowLangPicker(true)} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#EBE4D4' }}>
-                <Globe size={16} color="#2C2416" />
+              <button onClick={() => setShowLangPicker(true)} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(244,239,230,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={15} color="#F4EFE6" />
               </button>
             </div>
 
-            {/* Slogan en home */}
-            <div className="mb-3 inline-flex items-center gap-1.5">
-              <div className="w-6 h-px" style={{ background: '#D97757' }} />
-              <p className="text-xs uppercase tracking-widest" style={{ color: '#A8553C', fontFamily: 'system-ui', fontWeight: 700, letterSpacing: '0.12em' }}>
-                {t.slogan}
-              </p>
-            </div>
-
-            <h1 className="text-4xl leading-tight mb-2 whitespace-pre-line" style={{ color: '#2C2416', fontStyle: 'italic', fontWeight: 400 }}>
-              {t.whatNeed}
+            <p style={{ color: '#D97757', fontFamily: 'system-ui', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
+              Krafio
+            </p>
+            <h1 style={{ color: '#F4EFE6', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 400, fontSize: 32, lineHeight: 1.2, margin: '0 0 8px' }}>
+              {lang === 'en' ? 'Expert hands for your home, today.' : lang === 'pt' ? 'Mãos expertas para sua casa, hoje.' : lang === 'fr' ? 'Des experts pour votre maison, aujourd\'hui.' : 'Manos expertas para tu hogar, hoy.'}
             </h1>
-            <p className="text-sm mb-4" style={{ color: '#7A6F5C', fontFamily: 'system-ui' }}>
-              {t.homeSubtitle}
+            <p style={{ color: 'rgba(244,239,230,0.55)', fontFamily: 'system-ui', fontSize: 13, margin: '0 0 20px' }}>
+              {lang === 'en' ? 'Verified professionals · Clear prices · No surprises' : lang === 'pt' ? 'Profissionais verificados · Preços claros · Sem surpresas' : lang === 'fr' ? 'Pros vérifiés · Prix clairs · Sans surprises' : 'Profesionales verificados · Precios claros · Sin sorpresas'}
             </p>
 
-            <LocationBanner />
+            {/* Activity signal */}
+            {(() => {
+              const total = filteredProviders.length;
+              const verified = filteredProviders.filter(p => p.verified).length;
+              return total > 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(244,239,230,0.1)', borderRadius: 12, padding: '10px 14px', marginBottom: 20 }}>
+                  <div style={{ display: 'flex' }}>
+                    {filteredProviders.slice(0, 4).map((p, i) => (
+                      <div key={p.id} style={{ width: 26, height: 26, borderRadius: '50%', background: `${categories.find(c => c.id === p.category)?.color || '#D97757'}44`, border: '2px solid #2C2416', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#F4EFE6', fontWeight: 700, fontFamily: 'system-ui' }}>
+                        {(p.company || p.name || '?')[0].toUpperCase()}
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ color: 'rgba(244,239,230,0.85)', fontFamily: 'system-ui', fontSize: 12, margin: 0 }}>
+                    <strong style={{ color: '#F4EFE6' }}>{total}</strong>
+                    {' '}{lang === 'en' ? 'pros available' : lang === 'pt' ? 'profissionais disponíveis' : lang === 'fr' ? 'pros disponibles' : 'profesionales disponibles'}
+                    {verified > 0 && <span style={{ color: '#D97757' }}> · {verified} {lang === 'en' ? 'verified' : 'verificados'}</span>}
+                  </p>
+                </div>
+              ) : null;
+            })()}
 
-            <div className="relative">
-              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2" color="#7A6F5C" />
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#7A6F5C', pointerEvents: 'none' }} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                className="w-full py-4 pl-12 pr-4 rounded-2xl outline-none shadow-sm"
-                style={{ background: 'white', color: '#2C2416', fontFamily: 'system-ui' }}
+                style={{ width: '100%', padding: '14px 14px 14px 42px', borderRadius: 16, border: 'none', outline: 'none', background: '#F4EFE6', color: '#2C2416', fontFamily: 'system-ui', fontSize: 14, boxSizing: 'border-box' }}
               />
             </div>
+          </div>
+
+          <div className="px-5 pt-5 pb-2">
+            <LocationBanner />
           </div>
 
           <div className="px-5 pb-5">
