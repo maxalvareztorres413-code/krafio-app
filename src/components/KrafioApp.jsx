@@ -355,6 +355,7 @@ export default function KrafioApp() {
   const [favorites, setFavorites] = useState(new Set());
   const [country, setCountry] = useState('MX');
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Auth
   const { user, profile, signOut, loading: authLoading, fetchProfile } = useAuth();
@@ -1045,6 +1046,20 @@ export default function KrafioApp() {
     setFavorites(newFavs);
   };
 
+  const SEARCH_SYNONYMS = {
+    plomero: 'fontaneria', plomeros: 'fontaneria', plomería: 'fontaneria', plomeria: 'fontaneria',
+    gasfiter: 'fontaneria', fontanero: 'fontaneria', fontaneros: 'fontaneria', plumber: 'fontaneria',
+    electricista: 'electricidad', electricistas: 'electricidad', electrician: 'electricidad', eléctrico: 'electricidad', electrico: 'electricidad',
+    pintor: 'pintura', pintores: 'pintura', painter: 'pintura',
+    mudanzero: 'mudanza', mudancero: 'mudanza', flete: 'mudanza', mover: 'mudanza',
+    limpiador: 'limpieza', limpiadora: 'limpieza', aseo: 'limpieza', cleaner: 'limpieza',
+    jardinero: 'jardineria', jardineros: 'jardineria', gardener: 'jardineria', jardín: 'jardineria', jardin: 'jardineria',
+    carpintero: 'carpinteria', carpinteros: 'carpinteria', carpenter: 'carpinteria',
+    techista: 'techado', techador: 'techado', roofer: 'techado',
+    climatizacion: 'climatizacion', aire: 'climatizacion', ac: 'climatizacion', hvac: 'climatizacion',
+    cerrajero: 'cerrajeria', locksmith: 'cerrajeria',
+  };
+
   const filteredProviders = useMemo(() => {
     // Merge hardcoded demo providers with real providers loaded from Supabase
     // Real providers are deduplicated by supabaseId to avoid showing logged-in provider twice
@@ -1054,7 +1069,8 @@ export default function KrafioApp() {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      const synonymCategory = SEARCH_SYNONYMS[q] || null;
       filtered = filtered.filter(p => {
         const catName = (t.categoriesData[p.category] || '').toLowerCase();
         return (
@@ -1063,7 +1079,8 @@ export default function KrafioApp() {
           (p.category || '').toLowerCase().includes(q) ||
           catName.includes(q) ||
           (p.bio || '').toLowerCase().includes(q) ||
-          (p.tags || []).some(tag => tag.toLowerCase().includes(q))
+          (p.tags || []).some(tag => tag.toLowerCase().includes(q)) ||
+          (synonymCategory && p.category === synonymCategory)
         );
       });
     }
@@ -2364,12 +2381,29 @@ export default function KrafioApp() {
           {/* Hero */}
           <div style={{ background: '#2C2416', padding: '48px 20px 28px' }}>
             <div className="flex items-center justify-between mb-6">
-              <button onClick={() => { loadClientHistory(); setClientView('profile'); }} style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: avatarUrl ? 'transparent' : '#D97757', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {avatarUrl
-                  ? <img src={avatarUrl} alt="" style={{ width: 38, height: 38, objectFit: 'cover' }} />
-                  : <span style={{ color: 'white', fontFamily: 'system-ui', fontWeight: 700, fontSize: 13 }}>{(profile?.full_name || user?.email || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>
-                }
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setShowUserMenu(v => !v)} style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: avatarUrl ? 'transparent' : '#D97757', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="" style={{ width: 38, height: 38, objectFit: 'cover' }} />
+                    : <span style={{ color: 'white', fontFamily: 'system-ui', fontWeight: 700, fontSize: 13 }}>{(profile?.full_name || user?.email || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+                  }
+                </button>
+                {showUserMenu && (
+                  <>
+                    <div onClick={() => setShowUserMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                    <div style={{ position: 'absolute', top: 44, left: 0, background: '#3A3020', borderRadius: 14, overflow: 'hidden', zIndex: 100, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+                      <button onClick={() => { setShowUserMenu(false); loadClientHistory(); setClientView('profile'); }} style={{ width: '100%', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid rgba(244,239,230,0.08)' }}>
+                        <User size={16} color="#F4EFE6" />
+                        <span style={{ color: '#F4EFE6', fontFamily: 'system-ui', fontSize: 14, fontWeight: 500 }}>{lang === 'en' ? 'My profile' : 'Mi perfil'}</span>
+                      </button>
+                      <button onClick={() => { setShowUserMenu(false); signOut(); }} style={{ width: '100%', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <LogOut size={16} color="#E07060" />
+                        <span style={{ color: '#E07060', fontFamily: 'system-ui', fontSize: 14, fontWeight: 500 }}>{lang === 'en' ? 'Sign out' : 'Cerrar sesión'}</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 onClick={() => { setAddressInputText(userAddress); setGeocodeError(''); setShowAddressInput(true); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(244,239,230,0.12)', border: 'none', borderRadius: 20, padding: '6px 12px', cursor: 'pointer', maxWidth: 160 }}
