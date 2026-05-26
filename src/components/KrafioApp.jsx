@@ -2434,27 +2434,33 @@ export default function KrafioApp() {
             </p>
 
             {/* Activity signal */}
-            {(() => {
+            {filteredProviders.length > 0 && (() => {
               const total = filteredProviders.length;
               const verified = filteredProviders.filter(p => p.verified).length;
-              return total > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(244,239,230,0.1)', borderRadius: 12, padding: '10px 14px', marginBottom: 20 }}>
-                  <div style={{ display: 'flex' }}>
+              const first = filteredProviders[0];
+              return (
+                <button type="button"
+                  onClick={() => { setSelectedProvider(first); setClientView('detail'); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(244,239,230,0.1)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, width: '100%', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', flexShrink: 0 }}>
                     {filteredProviders.slice(0, 4).map((p, i) => (
-                      <button key={p.id} type="button" onClick={() => { setSelectedProvider(p); setClientView('detail'); }} style={{ width: 26, height: 26, borderRadius: '50%', background: `${categories.find(c => c.id === p.category)?.color || '#D97757'}66`, border: '2px solid #2C2416', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#F4EFE6', fontWeight: 700, fontFamily: 'system-ui', cursor: 'pointer', padding: 0 }}>
+                      <div key={p.id} style={{ width: 32, height: 32, borderRadius: '50%', background: `${categories.find(c => c.id === p.category)?.color || '#D97757'}88`, border: '2px solid #2C2416', marginLeft: i > 0 ? -10 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#F4EFE6', fontWeight: 700, fontFamily: 'system-ui' }}>
                         {(p.company || p.name || '?')[0].toUpperCase()}
-                      </button>
+                      </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => { if (filteredProviders.length === 1) { setSelectedProvider(filteredProviders[0]); setClientView('detail'); } }} style={{ flex: 1, background: 'none', border: 'none', padding: 0, cursor: filteredProviders.length === 1 ? 'pointer' : 'default', textAlign: 'left' }}>
+                  <div style={{ flex: 1 }}>
                     <p style={{ color: 'rgba(244,239,230,0.85)', fontFamily: 'system-ui', fontSize: 12, margin: 0 }}>
                       <strong style={{ color: '#F4EFE6' }}>{total}</strong>
                       {' '}{lang === 'en' ? 'pros available' : lang === 'pt' ? 'profissionais disponíveis' : lang === 'fr' ? 'pros disponibles' : 'profesionales disponibles'}
                       {verified > 0 && <span style={{ color: '#D97757' }}> · {verified} {lang === 'en' ? 'verified' : 'verificados'}</span>}
                     </p>
-                  </button>
-                </div>
-              ) : null;
+                    <p style={{ color: 'rgba(244,239,230,0.5)', fontFamily: 'system-ui', fontSize: 11, margin: '2px 0 0' }}>
+                      {lang === 'en' ? 'Tap to see' : 'Toca para ver'} →
+                    </p>
+                  </div>
+                </button>
+              );
             })()}
 
             {/* Search */}
