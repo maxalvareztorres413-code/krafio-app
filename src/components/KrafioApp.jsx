@@ -2371,9 +2371,14 @@ export default function KrafioApp() {
                   {userAddress || t.yourZone}
                 </span>
               </button>
-              <button onClick={() => setShowLangPicker(true)} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(244,239,230,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Globe size={15} color="#F4EFE6" />
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setShowLangPicker(true)} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(244,239,230,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Globe size={15} color="#F4EFE6" />
+                </button>
+                <button onClick={signOut} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(244,239,230,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LogOut size={15} color="#F4EFE6" />
+                </button>
+              </div>
             </div>
 
             <p style={{ color: '#D97757', fontFamily: 'system-ui', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
