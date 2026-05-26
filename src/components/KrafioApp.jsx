@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Star, MapPin, Phone, MessageCircle, Shield, Award, Clock,
   Heart, Filter, ChevronRight, ArrowLeft, Briefcase, User, Home,
@@ -484,10 +484,7 @@ export default function KrafioApp() {
         return;
       }
       if (profile.role === 'client') {
-        if (mode !== 'client') {
-          setMode('client');
-          setClientView('home');
-        }
+        setMode('client');
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         if (profile.address && !userAddress) setUserAddress(profile.address);
         subscribeToPush(user.id);
@@ -500,6 +497,15 @@ export default function KrafioApp() {
       setProviderData(null);
     }
   }, [user, profile, authLoading, loadProviderData, fetchProfile]);
+
+  // Reset to home ONLY when mode first transitions to 'client'
+  const prevModeRef = useRef(null);
+  useEffect(() => {
+    if (mode === 'client' && prevModeRef.current !== 'client') {
+      setClientView('home');
+    }
+    prevModeRef.current = mode;
+  }, [mode]);
 
   const openAuth = (role) => {
     setAuthModalRole(role);
