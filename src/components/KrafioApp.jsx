@@ -2175,7 +2175,9 @@ export default function KrafioApp() {
               <h2 className="text-lg" style={{ color: '#2C2416', fontFamily: 'system-ui', fontWeight: 600 }}>
                 {lang === 'en' ? 'My profile' : lang === 'pt' ? 'Meu perfil' : lang === 'fr' ? 'Mon profil' : 'Mi perfil'}
               </h2>
-              <div style={{ width: 40 }} />
+              <button onClick={signOut} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#EBE4D4' }}>
+                <LogOut size={20} color="#2C2416" />
+              </button>
             </div>
 
             {/* Avatar + name */}
